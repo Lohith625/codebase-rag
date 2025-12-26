@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+codebase-rag-env/
+env/
+ENV/
+*.egg-info/
+
+# Data and logs
+data/repositories/*
+data/vector_store/*
+logs/*
+*.log
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Documentation
+*.md
+docs/
+
+# Tests
+tests/
+.pytest_cache/
+
+# CI/CD
+.github/

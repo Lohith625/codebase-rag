@@ -53,3 +53,11 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# Deployment
+.env.production
+deployment/

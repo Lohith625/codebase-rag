@@ -1,0 +1,46 @@
+name: Auto-Update Index
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Pull latest repository changes
+      run: |
+        # Pull latest changes from indexed repositories
+        python scripts/auto_update_repos.py
+    
+    - name: Re-index changed files
+      run: |
+        # Re-index only changed files
+        python scripts/incremental_reindex.py
+    
+    - name: Commit updated index
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/vector_store/
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update: Re-indexed codebase"
+    
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
