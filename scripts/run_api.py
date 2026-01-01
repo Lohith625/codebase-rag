@@ -19,13 +19,13 @@ def main():
     logger.info("🚀 Starting Codebase RAG API Server...")
     logger.info("API will be available at: http://localhost:8000")
     logger.info("API docs at: http://localhost:8000/docs")
-    
+
     uvicorn.run(
         "backend.api.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,  # Enable auto-reload during development
-        log_level="info"
+        log_level="info",
     )
 
 

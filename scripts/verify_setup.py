@@ -11,22 +11,23 @@ from backend.utils import get_logger
 
 logger = get_logger(__name__)
 
+
 def check_imports():
     """Check if all required packages can be imported."""
     packages = {
-        'langchain': 'langchain',
-        'llama-index': 'llama_index',
-        'streamlit': 'streamlit',
-        'faiss': 'faiss',
-        'tree_sitter': 'tree_sitter',
-        'git': 'git',
-        'google.generativeai': 'google.generativeai',
-        'fastapi': 'fastapi',
-        'sentence_transformers': 'sentence_transformers',
-        'openai': 'openai',
-        'pinecone': 'pinecone',
+        "langchain": "langchain",
+        "llama-index": "llama_index",
+        "streamlit": "streamlit",
+        "faiss": "faiss",
+        "tree_sitter": "tree_sitter",
+        "git": "git",
+        "google.generativeai": "google.generativeai",
+        "fastapi": "fastapi",
+        "sentence_transformers": "sentence_transformers",
+        "openai": "openai",
+        "pinecone": "pinecone",
     }
-    
+
     failed = []
     for name, import_name in packages.items():
         try:
@@ -35,27 +36,29 @@ def check_imports():
         except ImportError as e:
             logger.error(f"❌ Failed to import {name}: {e}")
             failed.append(name)
-    
+
     return len(failed) == 0
+
 
 def check_directories():
     """Check if all required directories exist."""
     from config.settings import settings
-    
+
     dirs = [
         settings.data_dir,
         settings.vector_store_path,
         settings.repositories_path,
     ]
-    
+
     for dir_path in dirs:
         if dir_path.exists():
             logger.info(f"✅ Directory exists: {dir_path}")
         else:
             logger.error(f"❌ Directory missing: {dir_path}")
             return False
-    
+
     return True
+
 
 def check_env_file():
     """Check if .env file exists."""
@@ -67,19 +70,20 @@ def check_env_file():
         logger.error("❌ .env file not found")
         return False
 
+
 def main():
     logger.info("🚀 Starting setup verification...")
     logger.info("=" * 50)
-    
+
     logger.info("\n📦 Checking package imports...")
     imports_ok = check_imports()
-    
+
     logger.info("\n📁 Checking directories...")
     dirs_ok = check_directories()
-    
+
     logger.info("\n⚙️  Checking configuration...")
     env_ok = check_env_file()
-    
+
     logger.info("\n" + "=" * 50)
     if imports_ok and dirs_ok and env_ok:
         logger.info("✅ Setup verification complete! All checks passed.")
@@ -91,6 +95,7 @@ def main():
     else:
         logger.error("❌ Setup verification failed. Please fix the issues above.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -24,18 +24,22 @@ logger = get_logger(__name__)
 class SimpleEmbeddingGenerator:
     def __init__(self, dimension: int = 384):
         self.dimension = dimension
-    
+
     def generate_embedding(self, text: str):
         if not text:
             return None
         import hashlib
+
         hash_obj = hashlib.md5(text.encode())
         hash_bytes = hash_obj.digest()
-        return [float(hash_bytes[i % len(hash_bytes)]) / 255.0 for i in range(self.dimension)]
-    
+        return [
+            float(hash_bytes[i % len(hash_bytes)]) / 255.0
+            for i in range(self.dimension)
+        ]
+
     def generate_embeddings(self, texts, batch_size=32, show_progress=True):
         return [self.generate_embedding(t) for t in texts]
-    
+
     def get_dimension(self):
         return self.dimension
 
@@ -45,7 +49,7 @@ def setup_test_system():
     logger.info("=" * 60)
     logger.info("SETUP: Creating Test System")
     logger.info("=" * 60)
-    
+
     # Sample code chunks
     chunks = [
         CodeChunk(
@@ -57,14 +61,14 @@ def setup_test_system():
         return session
     return None""",
             metadata={
-                'type': 'function',
-                'name': 'authenticate_user',
-                'language': 'python',
-                'file_path': 'auth/authentication.py',
-                'start_line': 10,
-                'end_line': 17,
-                'content': 'def authenticate_user(username, password): ...'
-            }
+                "type": "function",
+                "name": "authenticate_user",
+                "language": "python",
+                "file_path": "auth/authentication.py",
+                "start_line": 10,
+                "end_line": 17,
+                "content": "def authenticate_user(username, password): ...",
+            },
         ),
         CodeChunk(
             content="""def send_notification(user_id, message, channel='email'):
@@ -76,26 +80,26 @@ def setup_test_system():
         send_sms(user.phone, message)
     log_notification(user_id, channel, message)""",
             metadata={
-                'type': 'function',
-                'name': 'send_notification',
-                'language': 'python',
-                'file_path': 'notifications/sender.py',
-                'start_line': 25,
-                'end_line': 32,
-                'content': 'def send_notification(user_id, message, channel): ...'
-            }
-        )
+                "type": "function",
+                "name": "send_notification",
+                "language": "python",
+                "file_path": "notifications/sender.py",
+                "start_line": 25,
+                "end_line": 32,
+                "content": "def send_notification(user_id, message, channel): ...",
+            },
+        ),
     ]
-    
+
     # Setup vector store and index
     generator = SimpleEmbeddingGenerator()
     vector_store = FAISSVectorStore(dimension=384)
     indexer = Indexer(generator, vector_store)
     indexer.index_chunks(chunks)
-    
+
     # Create search engine
     search_engine = CodeSearchEngine(vector_store, generator)
-    
+
     logger.info("✅ Test system ready")
     return search_engine
 
@@ -105,16 +109,16 @@ def test_query_constructor():
     logger.info("\n" + "=" * 60)
     logger.info("TEST 1: Query Constructor")
     logger.info("=" * 60)
-    
+
     constructor = QueryConstructor()
-    
+
     queries = [
         "How does user authentication work?",
         "Find the login function in Python",
         "Explain the send_email method",
-        "Debug authentication error"
+        "Debug authentication error",
     ]
-    
+
     for query in queries:
         logger.info(f"\nQuery: '{query}'")
         parsed = constructor.parse_query(query)
@@ -128,53 +132,55 @@ def test_rag_pipeline(search_engine):
     logger.info("\n" + "=" * 60)
     logger.info("TEST 2: RAG Pipeline")
     logger.info("=" * 60)
-    
+
     # Use mock LLM for testing
     llm_client = MockLLMClient()
     pipeline = RAGPipeline(search_engine, llm_client, top_k=3)
-    
+
     queries = [
         "How is user authentication handled?",
         "How do I send notifications to users?",
-        "Explain the authentication process"
+        "Explain the authentication process",
     ]
-    
+
     for query in queries:
         logger.info(f"\n{'─' * 60}")
         logger.info(f"Query: '{query}'")
-        
+
         response = pipeline.query(query, include_context=False)
-        
+
         logger.info(f"\n✅ Response Generated")
         logger.info(f"Intent: {response['query_info']['intent']}")
         logger.info(f"Sources: {response['num_sources']}")
-        
+
         logger.info(f"\nAnswer:\n{response['answer'][:200]}...")
-        
+
         logger.info(f"\nSources:")
-        for i, source in enumerate(response['sources'], 1):
-            logger.info(f"  {i}. {source['name']} ({source['file']}, lines {source['lines']})")
+        for i, source in enumerate(response["sources"], 1):
+            logger.info(
+                f"  {i}. {source['name']} ({source['file']}, lines {source['lines']})"
+            )
 
 
 def main():
     """Run all tests."""
     logger.info("🚀 Starting LLM Integration Tests\n")
-    
+
     # Setup
     search_engine = setup_test_system()
-    
+
     # Test 1: Query Constructor
     test_query_constructor()
-    
+
     # Test 2: RAG Pipeline
     test_rag_pipeline(search_engine)
-    
+
     logger.info("\n" + "=" * 60)
     logger.info("✅ All LLM tests completed!")
     logger.info("=" * 60)
     logger.info("\nNote: Using MockLLMClient for testing.")
     logger.info("In production, use GeminiClient or OpenAIClient with real API keys.")
-    
+
     return 0
 
 
