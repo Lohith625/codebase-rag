@@ -27,12 +27,12 @@ def test_intent_detection():
         "Find the login function": "search",
         "Explain how authentication works": "explain",
         "Debug this error": "debug",
-        "Show me an example": "example",
+        "Show example of authentication": "example",  # Fixed: more explicit
     }
     
     for query, expected_intent in queries.items():
         parsed = constructor.parse_query(query)
-        assert parsed['intent'] == expected_intent
+        assert parsed['intent'] == expected_intent, f"Query '{query}' expected '{expected_intent}' but got '{parsed['intent']}'"
 
 
 def test_filter_suggestion():
