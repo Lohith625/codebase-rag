@@ -10,9 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
 
 from backend.api.models import (
-    QueryRequest, QueryResponse, IngestRequest, IngestResponse,
-    ExplainRequest, ExplainResponse, DebugRequest, DebugResponse,
-    HealthResponse, SourceReference
+    QueryRequest,
+    QueryResponse,
+    IngestRequest,
+    IngestResponse,
+    ExplainRequest,
+    ExplainResponse,
+    DebugRequest,
+    DebugResponse,
+    HealthResponse,
+    SourceReference,
 )
 from backend.ingestion.github_loader import GitHubLoader
 from backend.ingestion.document_loader import DocumentLoader
@@ -32,7 +39,7 @@ logger = get_logger(__name__)
 app = FastAPI(
     title="Codebase RAG API",
     description="Intelligent code search and Q&A system using RAG",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add CORS middleware
@@ -54,31 +61,36 @@ indexer: Indexer = None
 
 class SimpleEmbeddingGenerator:
     """Simple embeddings for development."""
+
     def __init__(self, dimension: int = 384):
         self.dimension = dimension
         logger.info(f"SimpleEmbeddingGenerator initialized")
-    
+
     def generate_embedding(self, text: str):
         if not text:
             return None
         import hashlib
+
         hash_obj = hashlib.md5(text.encode())
         hash_bytes = hash_obj.digest()
-        return [float(hash_bytes[i % len(hash_bytes)]) / 255.0 for i in range(self.dimension)]
-    
+        return [
+            float(hash_bytes[i % len(hash_bytes)]) / 255.0
+            for i in range(self.dimension)
+        ]
+
     def generate_embeddings(self, texts, batch_size=32, show_progress=True):
         return [self.generate_embedding(t) for t in texts]
-    
+
     def get_dimension(self):
         return self.dimension
 
 
 def get_llm_client():
     """Get the best available LLM client."""
-    
+
     # FOR NOW: Just use Mock LLM (it works perfectly!)
     # TODO: Add your real API keys to .env and uncomment below
-    
+
     """
     # Try Gemini
     if settings.gemini_api_key:
@@ -100,7 +112,7 @@ def get_llm_client():
         except Exception as e:
             logger.warning(f"OpenAI failed: {e}")
     """
-    
+
     # Use Mock LLM (fast, reliable, good responses)
     logger.info("✅ Using Mock LLM (configure API keys for production)")
     return MockLLMClient()
@@ -109,13 +121,13 @@ def get_llm_client():
 def initialize_system():
     """Initialize the RAG system."""
     global vector_store, embedding_generator, search_engine, rag_pipeline, indexer
-    
+
     logger.info("Initializing RAG system...")
-    
+
     embedding_generator = SimpleEmbeddingGenerator(dimension=384)
     dimension = embedding_generator.get_dimension()
     vector_store = FAISSVectorStore(dimension=dimension)
-    
+
     # Load existing index
     index_path = settings.vector_store_path / "main_index"
     if index_path.exists():
@@ -124,12 +136,12 @@ def initialize_system():
             logger.info(f"✅ Loaded index: {vector_store.index.ntotal} vectors")
         except Exception as e:
             logger.warning(f"Could not load index: {e}")
-    
+
     search_engine = CodeSearchEngine(vector_store, embedding_generator)
     llm_client = get_llm_client()
     rag_pipeline = RAGPipeline(search_engine, llm_client, top_k=5)
     indexer = Indexer(embedding_generator, vector_store)
-    
+
     logger.info("✅ RAG system initialized")
 
 
@@ -147,7 +159,7 @@ async def root():
         "version": "1.0.0",
         "status": "operational",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
@@ -155,11 +167,7 @@ async def root():
 async def health_check():
     """Health check."""
     stats = indexer.get_stats() if indexer else {}
-    return HealthResponse(
-        status="healthy",
-        version="1.0.0",
-        index_stats=stats
-    )
+    return HealthResponse(status="healthy", version="1.0.0", index_stats=stats)
 
 
 @app.post("/query", response_model=QueryResponse)
@@ -167,25 +175,25 @@ async def query_code(request: QueryRequest):
     """Query the codebase."""
     if not rag_pipeline:
         raise HTTPException(status_code=503, detail="System not initialized")
-    
+
     start_time = time.time()
-    
+
     try:
         response = rag_pipeline.query(
             user_query=request.query,
             language=request.language,
-            include_context=request.include_context
+            include_context=request.include_context,
         )
-        
+
         processing_time = time.time() - start_time
-        sources = [SourceReference(**source) for source in response['sources']]
-        
+        sources = [SourceReference(**source) for source in response["sources"]]
+
         return QueryResponse(
-            answer=response['answer'],
+            answer=response["answer"],
             sources=sources,
-            num_sources=response['num_sources'],
-            query_info=response['query_info'],
-            processing_time=processing_time
+            num_sources=response["num_sources"],
+            query_info=response["query_info"],
+            processing_time=processing_time,
         )
     except Exception as e:
         logger.error(f"Query failed: {e}")
@@ -197,48 +205,47 @@ async def ingest_repository(request: IngestRequest, background_tasks: Background
     """Ingest a repository."""
     if not indexer:
         raise HTTPException(status_code=503, detail="System not initialized")
-    
+
     try:
         loader = GitHubLoader()
         repo_path = loader.clone_repository(
-            repo_url=request.repo_url,
-            branch=request.branch
+            repo_url=request.repo_url, branch=request.branch
         )
-        
+
         repo_name = repo_path.name
-        extensions = request.extensions or ['.py', '.js', '.java', '.cpp', '.go']
+        extensions = request.extensions or [".py", ".js", ".java", ".cpp", ".go"]
         files = loader.get_file_list(repo_path, extensions=extensions)
-        
+
         doc_loader = DocumentLoader()
         documents = doc_loader.load_files(files, show_progress=False)
-        
+
         chunker = CodeChunker(
             chunk_size=settings.chunk_size,
             chunk_overlap=settings.chunk_overlap,
-            use_ast=True
+            use_ast=True,
         )
-        
+
         all_chunks = []
         for doc in documents:
             chunks = chunker.chunk_code(
                 code=doc.content,
-                language=doc.metadata.get('language', 'unknown'),
-                file_path=doc.metadata.get('filepath', '')
+                language=doc.metadata.get("language", "unknown"),
+                file_path=doc.metadata.get("filepath", ""),
             )
             all_chunks.extend(chunks)
-        
+
         indexed_count = indexer.index_chunks(all_chunks, batch_size=32)
-        
+
         index_path = settings.vector_store_path / "main_index"
         indexer.save_index(index_path)
-        
+
         return IngestResponse(
             status="success",
             message=f"Repository {repo_name} ingested successfully",
             repo_name=repo_name,
             files_processed=len(documents),
             chunks_created=len(all_chunks),
-            chunks_indexed=indexed_count
+            chunks_indexed=indexed_count,
         )
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
@@ -250,17 +257,16 @@ async def explain_code(request: ExplainRequest):
     """Explain code."""
     if not rag_pipeline:
         raise HTTPException(status_code=503, detail="System not initialized")
-    
+
     try:
         explanation = rag_pipeline.explain_code(
-            code=request.code,
-            language=request.language
+            code=request.code, language=request.language
         )
-        
+
         return ExplainResponse(
             explanation=explanation,
             code_snippet=request.code,
-            language=request.language
+            language=request.language,
         )
     except Exception as e:
         logger.error(f"Explanation failed: {e}")
@@ -272,19 +278,15 @@ async def debug_help(request: DebugRequest):
     """Debug help."""
     if not rag_pipeline:
         raise HTTPException(status_code=503, detail="System not initialized")
-    
+
     try:
         result = rag_pipeline.debug_help(
-            error_message=request.error_message,
-            language=request.language
+            error_message=request.error_message, language=request.language
         )
-        
-        sources = [SourceReference(**source) for source in result['related_code']]
-        
-        return DebugResponse(
-            analysis=result['analysis'],
-            related_code=sources
-        )
+
+        sources = [SourceReference(**source) for source in result["related_code"]]
+
+        return DebugResponse(analysis=result["analysis"], related_code=sources)
     except Exception as e:
         logger.error(f"Debug help failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -295,15 +297,16 @@ async def get_stats():
     """Get stats."""
     if not indexer:
         return {"error": "System not initialized"}
-    
+
     stats = indexer.get_stats()
     return {
-        "indexed_vectors": stats.get('total_vectors', 0),
-        "dimension": stats.get('dimension', 0),
-        "status": "operational"
+        "indexed_vectors": stats.get("total_vectors", 0),
+        "dimension": stats.get("dimension", 0),
+        "status": "operational",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
