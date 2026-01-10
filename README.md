@@ -1,4 +1,3 @@
-cat > README.md << 'EOF'
 # 🤖 Codebase RAG - Chat with Your Code Using AI
 
 <div align="center">
@@ -385,7 +384,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Made with ❤️ and 🤖 by [Lohith m]
 
-</div>
-EOF
-
-echo "✅ Created professional README.md!"
